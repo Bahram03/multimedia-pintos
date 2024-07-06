@@ -4,7 +4,9 @@
 #include "filesys/filesys.h"
 #include "threads/synch.h"
 
-#define BUFFER_CACHE_SIZE 64
+#define BUFFER_CACHE_SIZE 64  
+#define READ_AHEAD_SIZE 8   // 8 is just an example and we have to later check the 
+                            // performance enhancement to calculate the best value for it 
 
 struct buffer_cache_entry_t {
   bool occupied;  // true only if this entry is valid cache entry
@@ -14,6 +16,7 @@ struct buffer_cache_entry_t {
 
   bool dirty;     // dirty bit
   bool access;    // reference bit, for clock algorithm
+  struct list_elem elem;
 };
 
 /* Buffer cache entries. */
@@ -176,4 +179,22 @@ buffer_cache_write (block_sector_t sector, const void *source)
   memcpy (slot->buffer, source, BLOCK_SECTOR_SIZE);
 
   lock_release (&buffer_cache_lock);
+}
+
+
+void cache_read_ahead(block_sector_t sector) {
+  for (int i = 1; i <= READ_AHEAD_SIZE; i++) {
+    block_sector_t next_sector = sector + i;
+    struct buffer_cache_entry_t *entry = buffer_cache_lookup(next_sector);
+    if (entry == NULL) {
+      entry = buffer_cache_evict();
+      ASSERT(entry != NULL && entry->occupied == false);
+
+      entry->occupied = true;
+      entry->disk_sector = next_sector;
+      entry->dirty = false;
+      block_read(fs_device, next_sector, entry->buffer);
+    }
+    entry->access = true;
+  }
 }
