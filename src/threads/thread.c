@@ -154,8 +154,12 @@ thread_tick (int64_t tick)
   thread_awake(tick);
 
   /* Enforce preemption. */
-  if (++thread_ticks >= TIME_SLICE)
-    intr_yield_on_return ();
+  if (++thread_ticks >= TIME_SLICE) {
+      if (t != idle_thread) {
+          t->deadline = calculate_new_deadline(t); // Update deadline dynamically
+          intr_yield_on_return();
+      }
+  }
 }
 
 /* Wake up all sleeping threads whose ticks_end has been expired,
