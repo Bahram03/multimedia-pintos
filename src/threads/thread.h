@@ -18,6 +18,11 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+enum task_type {
+    NORMAL,
+    MULTIMEDIA
+};
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -27,6 +32,8 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+enum task_type type;                /* Task type */
+int64_t deadline;                   /* Deadline for EDF scheduling */
 
 /* A kernel thread or user process.
 

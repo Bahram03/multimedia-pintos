@@ -110,6 +110,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
   initial_thread->sleep_endtick = 0; // a dummy value
+  initial_thread->deadline = INT64_MAX; 
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -207,7 +208,7 @@ thread_print_stats (void)
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
-thread_create (const char *name, int priority,
+thread_create (const char *name, int priority, enum task_type type,
                thread_func *function, void *aux)
 {
   struct thread *t;
@@ -241,6 +242,11 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  t->type = type;
+  if (type == MULTIMEDIA) {
+      t->deadline = calculate_deadline(); 
+  }
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -541,7 +547,7 @@ idle (void *idle_started_ UNUSED)
 
          See [IA32-v2a] "HLT", [IA32-v2b] "STI", and [IA32-v3a]
          7.11.1 "HLT Instruction". */
-      asm volatile ("sti; hlt" : : : "memory");
+      asm volatile ("sti");// hlt" : : : "memory");
     }
 }
 
@@ -638,9 +644,39 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else{
+    if (any_multimedia_task()) {
+        return next_multimedia_thread(); // EDF selection
+    } else {
+      return list_entry(list_pop_front(&ready_list), struct thread, elem); // previous scheduling algorithm
+    }
+  }
+}    
+
+bool any_multimedia_task(void) {
+    struct list_elem *e;
+    for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, elem);
+        if (t->type == MULTIMEDIA) {
+            return true;
+        }
+    }
+    return false;
 }
+
+struct thread *next_multimedia_thread(void) {
+    struct list_elem *e = list_min(&ready_list, thread_deadline_less, NULL);
+    list_remove(e);
+    return list_entry(e, struct thread, elem);
+}
+
+
+bool thread_deadline_less(const struct list_elem *a, const struct list_elem *b) {
+    const struct thread *t1 = list_entry(a, struct thread, elem);
+    const struct thread *t2 = list_entry(b, struct thread, elem);
+    return t1->deadline < t2->deadline;
+}
+
 
 /* Completes a thread switch by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.
