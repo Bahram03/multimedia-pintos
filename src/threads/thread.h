@@ -32,8 +32,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-enum task_type type;                /* Task type */
-int64_t deadline;                   /* Deadline for EDF scheduling */
+
 
 /* A kernel thread or user process.
 
@@ -103,6 +102,8 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem waitelem;          /* List element, stored in the wait_list queue */
     int64_t sleep_endtick;              /* The tick after which the thread should awake (if the thread is in sleep) */
+    enum task_type type;                /* Task type */
+    int64_t deadline;                   /* Deadline for EDF scheduling */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element, stored in the ready_list queue */
